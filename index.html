@@ -1034,7 +1034,7 @@
           if (rows.length === 0) {
             showMessage(findTopTen
               ? "No profitable opportunities with reported prices matched these filters. Prices may be missing or stale."
-              : "No items had both a source-city sell listing and a destination buy order. Try another item, quality, market, or server.", "info");
+              : "No matching prices were reported for these selected items and market filters. The site and API are connected; try another quality or market, or use “2 best per city → Black Market” to find items with available prices.", "info");
           } else if (staleCount) {
             showMessage(`${findTopTen ? "City opportunities" : `${rows.length} opportunities matched`}: ${staleCount} result${staleCount === 1 ? " has" : "s have"} price data older than 24 hours. Prices refresh from the latest community reports, but verify in-game before trading.`, "info");
           } else {
