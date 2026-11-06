@@ -357,8 +357,8 @@
       <div class="table-wrap">
         <div class="empty-state" id="empty-state">
           <div class="empty-icon" aria-hidden="true">↗</div>
-          <strong>Ready to find your next flip?</strong>
-          <span>Choose your server and markets, then scan to compare city-to-city opportunities.</span>
+          <strong>Loading live flip opportunities…</strong>
+          <span>The latest available city-to-Black-Market results will appear here automatically.</span>
         </div>
         <table id="results-table" hidden>
           <thead>
@@ -446,6 +446,7 @@
       const savedDefaultItems = ["T4_BAG", "T4_CAPE", "T4_MAIN_SWORD", "T4_2H_CLAYMORE", "T4_MAIN_FIRESTAFF", "T4_ARMOR_PLATE_SET1", "T4_ARMOR_LEATHER_SET1", "T4_ORE", "T4_HIDE", "T4_WOOD"];
       const MAX_ITEMS_PER_REQUEST = 100;
       const TOP_CITY_REFRESH_MS = 60_000;
+      const LIVE_OPPORTUNITIES_CACHE_KEY = "albion-flipper-live-opportunities";
       let selectedItems = new Set(savedDefaultItems);
       let activeCategory = "All";
       let activeController = null;
@@ -904,6 +905,41 @@
         }
       };
 
+      const saveLiveOpportunities = (rows) => {
+        try {
+          localStorage.setItem(LIVE_OPPORTUNITIES_CACHE_KEY, JSON.stringify({
+            updatedAt: Date.now(),
+            rows
+          }));
+        } catch (error) {
+          console.warn("Could not save the latest live opportunities.", error);
+        }
+      };
+
+      const restoreLiveOpportunities = () => {
+        try {
+          const cached = JSON.parse(localStorage.getItem(LIVE_OPPORTUNITIES_CACHE_KEY) || "null");
+          if (!cached || !Array.isArray(cached.rows)) return false;
+          const rows = cached.rows.filter((row) => row && typeof row.id === "string"
+            && /^T[1-8]_[A-Z0-9_]+(?:@[1-4])?$/.test(row.id)
+            && typeof row.name === "string"
+            && CITIES.includes(row.sourceCity)
+            && row.destinationCity === "Black Market"
+            && [row.buyPrice, row.sellPrice, row.afterTax, row.profit, row.roi, row.ageHours].every(Number.isFinite));
+          if (!rows.length) return false;
+          renderResults(rows, rows.length);
+          const updatedAt = Number.isFinite(cached.updatedAt) ? cached.updatedAt : 0;
+          const ageMinutes = Math.max(0, Math.floor((Date.now() - updatedAt) / 60_000));
+          setStatus(`Showing saved opportunities · ${ageMinutes}m since sync`, "live");
+          $("#top-ten-sync").textContent = `Showing last saved city opportunities from ${new Date(updatedAt).toLocaleTimeString()} while live prices load.`;
+          showMessage("Showing your last saved profitable opportunities while current market prices load.", "info");
+          return true;
+        } catch (error) {
+          console.warn("Could not restore the last saved live opportunities.", error);
+          return false;
+        }
+      };
+
       const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       })[char]);
@@ -960,12 +996,6 @@
           showMessage("The full item list is still loading. Try Live Top 10 again in a moment.", "info");
           return;
         }
-        if (!findTopTen) {
-          topTenMode = false;
-          clearTimeout(topTenRefreshTimer);
-          $("#top-ten-button").textContent = "Start live updates";
-          $("#top-ten-sync").textContent = "Live updates paused. Start them to refresh city opportunities every minute.";
-        }
         let items;
         try {
           items = findTopTen ? getTopTenItems() : parseItems();
@@ -1003,14 +1033,18 @@
           let rows = findTopTen
             ? buildTopCityRows(items, data, tax / 100, extraCost)
             : buildRows(items, data, source, destination, tax / 100, extraCost);
-          renderResults(rows, items.length);
+          const hasDisplayedRows = $("#results-body").children.length > 0;
+          if (rows.length || !hasDisplayedRows) renderResults(rows, items.length);
+          if (findTopTen && rows.length) saveLiveOpportunities(rows);
           const syncedAt = new Date();
           setStatus(`Prices updated ${syncedAt.toLocaleTimeString()}`, "live");
 
           const staleCount = rows.filter((row) => row.ageHours > 24).length;
           if (rows.length === 0) {
             showMessage(findTopTen
-              ? "No profitable opportunities with reported prices matched these filters. Prices may be missing or stale."
+              ? hasDisplayedRows
+                ? "No new profitable matches in this refresh. Keeping the last available opportunities visible and checking again in one minute."
+                : "No profitable opportunities with reported prices matched these filters. Prices may be missing or stale."
               : "No matching prices were reported for these selected items and market filters. The site and API are connected; try another quality or market, or use “2 best per city → Black Market” to find items with available prices.", "info");
           } else if (staleCount) {
             showMessage(`${findTopTen ? "City opportunities" : `${rows.length} opportunities matched`}: ${staleCount} result${staleCount === 1 ? " has" : "s have"} price data older than 24 hours. Prices refresh from the latest community reports, but verify in-game before trading.`, "info");
@@ -1041,6 +1075,7 @@
         }
       };
 
+      restoreLiveOpportunities();
       scanButton.addEventListener("click", () => scan());
       $("#top-ten-button").addEventListener("click", () => {
         topTenMode = !topTenMode;
