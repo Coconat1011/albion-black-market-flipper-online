@@ -256,6 +256,7 @@
             <option>Martlock</option>
             <option>Thetford</option>
             <option>Caerleon</option>
+            <option>Brecilien</option>
           </select>
           <span class="field-hint">Find the cheapest city sell listing.</span>
         </div>
@@ -270,6 +271,7 @@
             <option>Martlock</option>
             <option>Thetford</option>
             <option>Caerleon</option>
+            <option>Brecilien</option>
           </select>
           <span class="field-hint">Find the highest city buy order.</span>
         </div>
@@ -320,11 +322,11 @@
         <div class="picker-categories" aria-label="Item categories">
           <span class="preset-label">Quick fill:</span>
           <button type="button" class="preset" data-preset="gear">Popular gear</button>
-          <button type="button" class="preset" id="top-ten-button">Live Top 10 profitable</button>
+          <button type="button" class="preset" id="top-ten-button">2 best per city → Black Market</button>
           <span aria-hidden="true" style="width:1px;height:20px;background:#353d32;margin:0 3px"></span>
           <button type="button" class="preset active" data-category="All">Black Market items</button>
         </div>
-        <div class="catalog-sync" id="top-ten-sync" aria-live="polite">Live Top 10 refreshes selected prices every 10 seconds and rediscovers items every minute.</div>
+        <div class="catalog-sync" id="top-ten-sync" aria-live="polite">Find up to 2 profitable items from each city to the Black Market. Refreshes every 10 seconds.</div>
         <div class="picker-summary">
           <strong>Selected items</strong>
           <span id="selection-count">0 / 100</span>
@@ -378,7 +380,7 @@
     (() => {
       "use strict";
 
-      const CITIES = ["Bridgewatch", "Fort Sterling", "Lymhurst", "Martlock", "Thetford", "Caerleon"];
+      const CITIES = ["Bridgewatch", "Fort Sterling", "Lymhurst", "Martlock", "Thetford", "Caerleon", "Brecilien"];
       const SERVER_API_HOSTS = { europe: "europe", americas: "west", asia: "east" };
       const ITEM_CATALOG_URL = "https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/formatted/items.txt";
       const ITEM_PAGE_SIZE = 100;
@@ -818,6 +820,47 @@
         }).filter(Boolean).sort((a, b) => b.profit - a.profit);
       };
 
+      const buildTopCityRows = (items, data, taxRate, extraCost) => {
+        const byItemCity = new Map();
+        const itemIds = new Set(items);
+        for (const entry of data) {
+          if (!entry || !itemIds.has(entry.item_id) || !entry.city) continue;
+          byItemCity.set(`${entry.item_id}|${entry.city}`, entry);
+        }
+
+        return CITIES.flatMap((city) => items.map((itemId) => {
+          const sourceEntry = byItemCity.get(`${itemId}|${city}`);
+          const blackMarketEntry = byItemCity.get(`${itemId}|Black Market`);
+          if (!sourceEntry || !validPrice(sourceEntry.sell_price_min)
+            || !blackMarketEntry || !validPrice(blackMarketEntry.buy_price_max)) return null;
+
+          const buyPrice = Number(sourceEntry.sell_price_min);
+          const sellPrice = Number(blackMarketEntry.buy_price_max);
+          const afterTax = sellPrice * (1 - taxRate);
+          const profit = afterTax - buyPrice - extraCost;
+          const ageDates = [
+            sourceEntry.sell_price_min_date || "",
+            blackMarketEntry.buy_price_max_date || ""
+          ].map(safeDate).filter(Boolean);
+          const oldest = ageDates.length ? new Date(Math.min(...ageDates.map((date) => date.getTime()))) : null;
+          return {
+            id: itemId,
+            name: itemName(itemId),
+            sourceCity: city,
+            destinationCity: "Black Market",
+            buyPrice,
+            sellPrice,
+            afterTax,
+            profit,
+            roi: profit / buyPrice * 100,
+            age: oldest ? timeAgo(oldest.toISOString()) : "No timestamp",
+            ageHours: oldest ? (Date.now() - oldest.getTime()) / 3600000 : Infinity
+          };
+        }).filter((row) => row && row.profit > 0)
+          .sort((a, b) => b.profit - a.profit)
+          .slice(0, 2));
+      };
+
       const renderResults = (rows, itemCount) => {
         $("#empty-state").hidden = true;
         $("#results-table").hidden = false;
@@ -901,7 +944,7 @@
       const scheduleTopTenRefresh = () => {
         clearTimeout(topTenRefreshTimer);
         if (!topTenMode) return;
-        $("#top-ten-sync").textContent = `Prices sync every 10 seconds; full item discovery every minute · ${new Date().toLocaleTimeString()} last checked.`;
+        $("#top-ten-sync").textContent = `Up to 2 profitable items per city · Black Market · prices checked ${new Date().toLocaleTimeString()}.`;
         topTenRefreshTimer = setTimeout(() => {
           if (document.hidden) {
             scheduleTopTenRefresh();
@@ -931,7 +974,7 @@
         if (!findTopTen) {
           topTenMode = false;
           clearTimeout(topTenRefreshTimer);
-          $("#top-ten-sync").textContent = "Live Top 10 checks the latest reported prices and refreshes every minute.";
+          $("#top-ten-sync").textContent = "Find up to 2 profitable items from each city to the Black Market. Refreshes every 10 seconds.";
         }
         let items;
         try {
@@ -944,8 +987,8 @@
           return;
         }
         const server = $("#server").value;
-        const source = $("#source").value;
-        const destination = $("#destination").value;
+        const source = findTopTen ? "all" : $("#source").value;
+        const destination = findTopTen ? "Black Market" : $("#destination").value;
         const tax = SELL_TAX_RATES[$("#premium-status").value];
         const extraCost = Number($("#extra-cost").value);
         if (!Number.isFinite(extraCost) || extraCost < 0) {
@@ -960,25 +1003,25 @@
         scanButton.disabled = true;
         $("#top-ten-button").disabled = true;
         scanButton.classList.add("loading");
-        $("#button-label").textContent = findTopTen ? "Finding Top 10…" : "Scanning markets…";
+        $("#button-label").textContent = findTopTen ? "Finding city opportunities…" : "Scanning markets…";
         message.className = "message";
         setStatus(findTopTen
-          ? refreshSelectedOnly ? "Refreshing Top 10 prices" : `Discovering prices for ${items.length.toLocaleString()} items`
+          ? refreshSelectedOnly ? "Refreshing city opportunity prices" : `Discovering city opportunities from ${items.length.toLocaleString()} items`
           : "Requesting market data");
 
         try {
           const locations = selectedLocations(source, destination);
           const data = await fetchMarketData(items, locations, $("#quality").value, server, controller.signal);
-          let rows = buildRows(items, data, source, destination, tax / 100, extraCost);
+          let rows = findTopTen
+            ? buildTopCityRows(items, data, tax / 100, extraCost)
+            : buildRows(items, data, source, destination, tax / 100, extraCost);
           if (findTopTen && !refreshSelectedOnly) {
-            rows = rows.filter((row) => row.profit > 0).slice(0, 10);
             selectedItems = new Set(rows.map((row) => row.id));
             saveSettings();
             renderSelectedItems();
             renderItemGrid();
             topTenLastDiscoveryAt = Date.now();
           } else if (findTopTen) {
-            rows = rows.filter((row) => row.profit > 0).slice(0, 10);
             selectedItems = new Set(rows.map((row) => row.id));
             saveSettings();
             renderSelectedItems();
@@ -993,10 +1036,10 @@
               ? "No profitable opportunities with reported prices matched these filters. Prices may be missing or stale."
               : "No items had both a source-city sell listing and a destination buy order. Try another item, quality, market, or server.", "info");
           } else if (staleCount) {
-            showMessage(`${findTopTen ? "Top profitable items" : `${rows.length} opportunities matched`}: ${staleCount} result${staleCount === 1 ? " has" : "s have"} price data older than 24 hours. Prices refresh from the latest community reports, but verify in-game before trading.`, "info");
+            showMessage(`${findTopTen ? "City opportunities" : `${rows.length} opportunities matched`}: ${staleCount} result${staleCount === 1 ? " has" : "s have"} price data older than 24 hours. Prices refresh from the latest community reports, but verify in-game before trading.`, "info");
           } else {
             showMessage(findTopTen
-              ? `Showing ${rows.length} currently profitable items. Prices sync every 10 seconds; item discovery refreshes every minute.`
+              ? `Showing up to 2 profitable items per city for the Black Market (${rows.length} opportunities). Prices sync every 10 seconds; item discovery refreshes every minute.`
               : `Scan complete: ${rows.length} items have prices in both selected markets. Prices can change before you trade.`, "info");
           }
           if (findTopTen) {
@@ -1027,7 +1070,7 @@
         topTenLastDiscoveryAt = 0;
         scan(true);
       });
-      document.querySelectorAll("#server, #source, #destination, #quality, #premium-status, #extra-cost, #item-tier, #item-enchantment")
+      document.querySelectorAll("#server, #quality, #premium-status, #extra-cost, #item-tier, #item-enchantment")
         .forEach((control) => control.addEventListener("change", refreshTopTenSoon));
       $("#item-search").addEventListener("input", refreshTopTenSoon);
       document.addEventListener("visibilitychange", () => {
