@@ -1,0 +1,820 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10130f">
+  <title>Black Market Flipper — Albion Online</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10130f;
+      --panel: #181c17;
+      --panel-raised: #1d221c;
+      --line: #2b322a;
+      --text: #f0f1e9;
+      --muted: #9da597;
+      --accent: #c6ed79;
+      --accent-dark: #19220f;
+      --gold: #e8c77d;
+      --red: #f18478;
+      --green: #a4d684;
+      --radius: 14px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 74% -18%, rgb(150 181 94 / 9%), transparent 42%),
+        var(--bg);
+      color: var(--text);
+    }
+
+    button, input, select, textarea { font: inherit; }
+    button { color: inherit; }
+    .shell { width: min(1200px, calc(100% - 48px)); margin: 0 auto; }
+
+    header {
+      height: 74px;
+      border-bottom: 1px solid rgb(255 255 255 / 6%);
+      display: flex;
+      align-items: center;
+    }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 11px; font-size: 14px; font-weight: 720; letter-spacing: -.025em; }
+    .brand-mark {
+      width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+      background: var(--accent); color: #17200e; font-size: 18px; font-weight: 900;
+    }
+    .local-badge, .status-pill {
+      display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line);
+      padding: 7px 10px; border-radius: 999px; color: var(--muted); font-size: 11px; white-space: nowrap;
+    }
+    .local-badge::before, .status-dot { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+    main { padding: 54px 0 70px; }
+    .eyebrow { color: var(--accent); text-transform: uppercase; letter-spacing: .13em; font-weight: 700; font-size: 10px; }
+    h1 { margin: 10px 0 8px; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spacing: -.055em; }
+    .intro { color: var(--muted); font-size: 14px; line-height: 1.65; margin: 0; max-width: 620px; }
+    .hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 28px; margin-bottom: 30px; }
+    .hero-note { color: var(--muted); font-size: 11px; line-height: 1.6; max-width: 235px; text-align: right; }
+    .hero-note strong { color: var(--text); font-weight: 600; }
+
+    .panel {
+      border: 1px solid var(--line); background: linear-gradient(145deg, rgb(29 34 28 / 94%), rgb(22 26 21 / 96%));
+      border-radius: var(--radius); padding: 22px;
+    }
+    .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 19px; }
+    .panel-heading h2 { font-size: 14px; letter-spacing: -.015em; margin: 0 0 5px; }
+    .panel-heading p { color: var(--muted); font-size: 11px; margin: 0; line-height: 1.5; }
+    .step { color: #778071; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+
+    .controls-grid { display: grid; grid-template-columns: 1.15fr 1.15fr .8fr .8fr .9fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+    .field label { color: #c5cabb; font-size: 11px; font-weight: 620; }
+    .field-hint { color: #7e8779; font-size: 10px; line-height: 1.4; }
+    .control {
+      width: 100%; min-height: 40px; outline: none; border: 1px solid #343c32; border-radius: 8px;
+      background: #121611; color: var(--text); padding: 0 11px; font-size: 12px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .control:focus { border-color: #93b95d; box-shadow: 0 0 0 3px rgb(198 237 121 / 9%); }
+    select.control { cursor: pointer; }
+    .item-field { margin-top: 17px; }
+    .picker-toolbar { display: grid; grid-template-columns: minmax(180px, 1fr) 120px 120px; gap: 10px; }
+    .picker-toolbar .control { min-height: 38px; }
+    .picker-categories { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 11px 0; }
+    .preset-label { color: #7e8779; font-size: 10px; margin-right: 2px; }
+    .preset {
+      border: 1px solid #353d32; background: transparent; padding: 5px 9px; border-radius: 6px;
+      color: #c2c9b9; font-size: 10px; cursor: pointer; transition: .15s;
+    }
+    .preset:hover { color: var(--accent); border-color: #718b4b; }
+    .preset.active { background: var(--accent-dark); border-color: #718b4b; color: var(--accent); }
+    .picker-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 8px; }
+    .picker-summary strong { font-size: 10px; font-weight: 650; color: #c5cabb; }
+    .picker-summary span { color: #7e8779; font-size: 10px; }
+    .clear-selection { border: 0; background: none; color: #b7ce90; padding: 4px; font-size: 10px; cursor: pointer; }
+    .clear-selection:hover { text-decoration: underline; }
+    .selected-items { display: flex; gap: 7px; flex-wrap: wrap; min-height: 36px; margin-bottom: 12px; }
+    .selected-chip {
+      display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 3px 8px 3px 4px;
+      border: 1px solid #3b4633; background: #1c2418; border-radius: 8px; color: #dce5d2; cursor: pointer;
+      font-size: 10px; max-width: 220px;
+    }
+    .selected-chip:hover { border-color: #9cbe68; }
+    .selected-chip img { width: 25px; height: 25px; object-fit: contain; }
+    .selected-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .selected-empty { color: #778071; font-size: 10px; padding: 8px 0; }
+    .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; max-height: 330px; overflow: auto; padding: 1px 3px 3px 1px; }
+    .item-card {
+      min-width: 0; min-height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 5px; border: 1px solid #30372e; border-radius: 9px; background: #141813; padding: 8px 6px;
+      text-align: center; cursor: pointer; transition: border-color .15s, background .15s, transform .15s;
+    }
+    .item-card:hover { border-color: #687e49; transform: translateY(-1px); }
+    .item-card.selected { border-color: #9bc566; background: #1c2518; box-shadow: inset 0 0 0 1px rgb(198 237 121 / 12%); }
+    .item-card img { width: 54px; height: 54px; object-fit: contain; }
+    .item-icon-fallback { display: grid; place-items: center; flex: none; width: 54px; height: 54px; color: #b7ce90; font-size: 22px; }
+    .selected-chip .item-icon-fallback { width: 25px; height: 25px; font-size: 13px; }
+    .item-card-name { max-width: 100%; color: #d8dfd1; font-size: 9px; line-height: 1.3; }
+    .item-card-tier { color: #829078; font-size: 8px; }
+    .picker-no-results { color: #929b8b; padding: 20px 4px; font-size: 11px; }
+    .table-item { display: flex; align-items: center; gap: 8px; }
+    .table-item img { width: 38px; height: 38px; object-fit: contain; flex: none; }
+    .table-item .item-icon-fallback { width: 38px; height: 38px; font-size: 17px; }
+    .form-footer { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 20px; }
+    .formula { color: #818a7d; font-size: 10px; line-height: 1.6; }
+    .formula strong { color: #b7c0ad; font-weight: 570; }
+    .primary {
+      border: 0; border-radius: 8px; min-height: 42px; padding: 0 17px; display: inline-flex; align-items: center;
+      justify-content: center; gap: 9px; color: #17200e; background: var(--accent); font-size: 12px;
+      font-weight: 750; cursor: pointer; white-space: nowrap; transition: transform .15s, filter .15s;
+    }
+    .primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .primary:disabled { opacity: .63; cursor: wait; transform: none; }
+    .spinner { display: none; width: 13px; height: 13px; border: 2px solid rgb(23 32 14 / 30%); border-top-color: #17200e; border-radius: 50%; animation: spin .7s linear infinite; }
+    .loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .message { display: none; margin-top: 14px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px; font-size: 11px; line-height: 1.5; }
+    .message.visible { display: block; }
+    .message.error { color: #ffaaa0; border-color: rgb(241 132 120 / 30%); background: rgb(241 132 120 / 6%); }
+    .message.info { color: #c4d2ae; border-color: rgb(198 237 121 / 20%); background: rgb(198 237 121 / 5%); }
+
+    .results-section { margin-top: 29px; }
+    .results-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 13px; }
+    .results-title { display: flex; align-items: baseline; gap: 10px; }
+    .results-title h2 { font-size: 14px; margin: 0; }
+    .result-count { color: var(--muted); font-size: 10px; }
+    .api-status { color: var(--muted); font-size: 10px; display: inline-flex; align-items: center; gap: 7px; }
+    .api-status .status-dot { background: #798272; }
+    .api-status.live .status-dot { background: var(--green); box-shadow: 0 0 8px rgb(164 214 132 / 50%); }
+    .api-status.error .status-dot { background: var(--red); }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 13px; }
+    .stat {
+      padding: 14px 15px; border: 1px solid var(--line); background: #171b16; border-radius: 10px;
+    }
+    .stat-label { color: #929b8b; font-size: 10px; }
+    .stat-value { margin-top: 8px; font-size: 19px; font-weight: 660; letter-spacing: -.035em; }
+    .stat-value.positive { color: var(--accent); }
+    .stat-sub { color: #778071; margin-top: 3px; font-size: 9px; }
+
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #171b16; }
+    table { border-collapse: collapse; width: 100%; min-width: 780px; text-align: left; }
+    th { padding: 12px 13px; color: #818a7d; font-size: 9px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase; white-space: nowrap; }
+    td { padding: 13px; border-top: 1px solid #292f28; font-size: 11px; white-space: nowrap; }
+    tbody tr:hover { background: rgb(255 255 255 / 2%); }
+    .item-name { font-weight: 650; color: #e4e9dc; }
+    .city-tag { color: #ccd4c0; }
+    .positive-text { color: var(--accent); font-weight: 680; }
+    .negative-text { color: var(--red); }
+    .roi { color: var(--green); font-weight: 650; }
+    .sub-cell { color: #788172; font-size: 9px; margin-top: 4px; }
+    .empty-state { padding: 48px 20px; text-align: center; color: var(--muted); }
+    .empty-icon { width: 42px; height: 42px; border: 1px solid #353d32; border-radius: 13px; display: grid; place-items: center; margin: 0 auto 13px; color: var(--accent); font-size: 18px; }
+    .empty-state strong { display: block; color: #dce2d4; font-size: 12px; margin-bottom: 6px; }
+    .empty-state span { font-size: 10px; line-height: 1.6; }
+    .footnote { color: #778071; font-size: 10px; line-height: 1.65; margin: 13px 2px 0; }
+    .footnote a { color: #b6ce91; text-decoration: none; }
+    .footnote a:hover { text-decoration: underline; }
+    footer { border-top: 1px solid rgb(255 255 255 / 6%); padding: 18px 0 24px; color: #717a6d; font-size: 10px; }
+    .footer-inner { display: flex; justify-content: space-between; gap: 16px; }
+
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 30px, 600px); }
+      main { padding-top: 37px; }
+      .hero { align-items: flex-start; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+      .hero-note { text-align: left; max-width: none; }
+      .controls-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel { padding: 17px; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 460px) {
+      .local-badge { font-size: 0; padding: 8px; }
+      .controls-grid { grid-template-columns: 1fr; }
+      .form-footer { align-items: stretch; flex-direction: column; }
+      .primary { width: 100%; }
+      .footer-inner { flex-direction: column; gap: 5px; }
+      .picker-toolbar { grid-template-columns: 1fr 1fr; }
+      .picker-toolbar #item-search { grid-column: 1 / -1; }
+      .item-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">A</span><span>Albion Market Tools</span></div>
+      <span class="local-badge">Runs locally in your browser</span>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Market intelligence · Albion Online</div>
+        <h1>Black Market Flipper</h1>
+        <p class="intro">Find items to buy from city markets and sell to Black Market buy orders. Compare live market snapshots and estimate your margin before you make the trip.</p>
+      </div>
+      <div class="hero-note"><strong>Your settings stay in this browser.</strong><br>Prices and item icons load from community services.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="setup-title">
+      <div class="panel-heading">
+        <div><h2 id="setup-title">Configure a scan</h2><p>Choose your server, markets and item IDs to compare.</p></div>
+        <span class="step">01 / SETUP</span>
+      </div>
+      <div class="controls-grid">
+        <div class="field">
+          <label for="server">Game server</label>
+          <select class="control" id="server">
+            <option value="europe">Europe</option>
+            <option value="americas">Americas</option>
+            <option value="asia" selected>Asia</option>
+          </select>
+          <span class="field-hint">Choose the server where you play.</span>
+        </div>
+        <div class="field">
+          <label for="source">Buy from</label>
+          <select class="control" id="source">
+            <option value="all">All royal cities</option>
+            <option>Bridgewatch</option>
+            <option>Fort Sterling</option>
+            <option>Lymhurst</option>
+            <option>Martlock</option>
+            <option>Thetford</option>
+            <option>Caerleon</option>
+          </select>
+          <span class="field-hint">Find the cheapest city sell listing.</span>
+        </div>
+        <div class="field">
+          <label for="quality">Item quality</label>
+          <select class="control" id="quality">
+            <option value="1">Normal</option>
+            <option value="2">Good</option>
+            <option value="3">Outstanding</option>
+            <option value="4">Excellent</option>
+            <option value="5">Masterpiece</option>
+          </select>
+          <span class="field-hint">Prices are quality-specific.</span>
+        </div>
+        <div class="field">
+          <label for="tax">Sell tax estimate</label>
+          <div style="position:relative">
+            <input class="control" id="tax" type="number" min="0" max="100" step="0.1" value="4" inputmode="decimal" style="padding-right:34px">
+            <span style="position:absolute;right:11px;top:13px;color:#879080;font-size:11px;pointer-events:none">%</span>
+          </div>
+          <span class="field-hint">Applied to Black Market sale price.</span>
+        </div>
+        <div class="field">
+          <label for="extra-cost">Extra cost / item</label>
+          <input class="control" id="extra-cost" type="number" min="0" step="100" value="0" inputmode="numeric">
+          <span class="field-hint">Optional transport or other costs.</span>
+        </div>
+      </div>
+
+      <div class="item-field">
+        <div class="field">
+          <label for="item-search">Choose items</label>
+          <div class="picker-toolbar">
+            <input class="control" id="item-search" type="search" placeholder="Search items…" autocomplete="off">
+            <select class="control" id="item-tier" aria-label="Item tier">
+              <option value="4">Tier 4</option><option value="5">Tier 5</option><option value="6">Tier 6</option>
+              <option value="7">Tier 7</option><option value="8">Tier 8</option>
+            </select>
+            <select class="control" id="item-enchantment" aria-label="Item enchantment">
+              <option value="0">No enchant</option><option value="1">Enchanted 1</option>
+              <option value="2">Enchanted 2</option><option value="3">Enchanted 3</option><option value="4">Enchanted 4</option>
+            </select>
+          </div>
+          <span class="field-hint">Click an item icon to add or remove it. Select a tier and enchantment first.</span>
+        </div>
+        <div class="picker-categories" aria-label="Item categories">
+          <span class="preset-label">Quick fill:</span>
+          <button type="button" class="preset" data-preset="gear">Popular gear</button>
+          <button type="button" class="preset" data-preset="materials">Materials</button>
+          <button type="button" class="preset" data-preset="mounts">Mounts &amp; supplies</button>
+          <span aria-hidden="true" style="width:1px;height:20px;background:#353d32;margin:0 3px"></span>
+          <button type="button" class="preset active" data-category="All">All items</button>
+          <button type="button" class="preset" data-category="Equipment">Equipment</button>
+          <button type="button" class="preset" data-category="Materials">Materials</button>
+          <button type="button" class="preset" data-category="Mounts">Mounts</button>
+        </div>
+        <div class="picker-summary">
+          <strong>Selected items</strong>
+          <span id="selection-count">0 / 100</span>
+          <button type="button" class="clear-selection" id="clear-selection">Clear all</button>
+        </div>
+        <div class="selected-items" id="selected-items" aria-live="polite"></div>
+        <div class="item-grid" id="item-grid" aria-label="Available items"></div>
+      </div>
+
+      <div class="form-footer">
+        <div class="formula"><strong>Net profit</strong> = Black Market buy order × (1 − tax) − city sell listing − extra cost<br>Enter your estimated transport and other costs above.</div>
+        <button type="button" class="primary" id="scan-button"><span class="spinner" aria-hidden="true"></span><span id="button-label">Scan market prices</span><span aria-hidden="true">→</span></button>
+      </div>
+      <div class="message" id="message" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="results-section" aria-labelledby="results-heading">
+      <div class="results-top">
+        <div class="results-title"><h2 id="results-heading">Flip opportunities</h2><span class="result-count" id="result-count"></span></div>
+        <div class="api-status" id="api-status"><span class="status-dot"></span><span id="status-label">Waiting for scan</span></div>
+      </div>
+      <div class="stats" aria-label="Scan summary">
+        <div class="stat"><div class="stat-label">Items scanned</div><div class="stat-value" id="stat-scanned">—</div><div class="stat-sub">Unique item IDs</div></div>
+        <div class="stat"><div class="stat-label">Profitable flips</div><div class="stat-value positive" id="stat-profitable">—</div><div class="stat-sub">After estimated sell tax</div></div>
+        <div class="stat"><div class="stat-label">Best net profit</div><div class="stat-value" id="stat-best">—</div><div class="stat-sub" id="stat-best-item">Top item, after configured costs</div></div>
+        <div class="stat"><div class="stat-label">Best return</div><div class="stat-value" id="stat-roi">—</div><div class="stat-sub" id="stat-roi-item">Net profit ÷ buy price</div></div>
+      </div>
+      <div class="table-wrap">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon" aria-hidden="true">↗</div>
+          <strong>Ready to find your next flip?</strong>
+          <span>Choose your server and scan the market to see the best buy-to-Black-Market opportunities.</span>
+        </div>
+        <table id="results-table" hidden>
+          <thead>
+            <tr>
+              <th>Item</th><th>Buy from</th><th>Buy price</th><th>Black Market order</th><th>After tax</th><th>Net profit</th><th>Return</th><th>Price age</th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+      <p class="footnote">Prices are community-reported snapshots from the <a href="https://www.albion-online-data.com/" target="_blank" rel="noopener noreferrer">Albion Online Data Project</a>, not guaranteed live quotes. Check both markets in-game before trading; item availability and prices can change quickly.</p>
+    </section>
+  </main>
+  <footer>
+    <div class="shell footer-inner"><span>Independent community tool · Not affiliated with Sandbox Interactive</span><span>Price data provided by Albion Online Data Project</span></div>
+  </footer>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const CITIES = ["Bridgewatch", "Fort Sterling", "Lymhurst", "Martlock", "Thetford", "Caerleon"];
+      const ITEM_CATALOG = [
+        { suffix: "BAG", name: "Bag", category: "Equipment", enchantable: true },
+        { suffix: "CAPE", name: "Cape", category: "Equipment", enchantable: true },
+        { suffix: "MAIN_SWORD", name: "Broadsword", category: "Equipment", enchantable: true },
+        { suffix: "2H_CLAYMORE", name: "Claymore", category: "Equipment", enchantable: true },
+        { suffix: "2H_BOW", name: "Bow", category: "Equipment", enchantable: true },
+        { suffix: "2H_CROSSBOW", name: "Crossbow", category: "Equipment", enchantable: true },
+        { suffix: "MAIN_FIRESTAFF", name: "Fire Staff", category: "Equipment", enchantable: true },
+        { suffix: "MAIN_FROSTSTAFF", name: "Frost Staff", category: "Equipment", enchantable: true },
+        { suffix: "MAIN_AXE", name: "Battleaxe", category: "Equipment", enchantable: true },
+        { suffix: "2H_AXE", name: "Greataxe", category: "Equipment", enchantable: true },
+        { suffix: "2H_SPEAR", name: "Pike", category: "Equipment", enchantable: true },
+        { suffix: "2H_HAMMER", name: "Great Hammer", category: "Equipment", enchantable: true },
+        { suffix: "2H_DAGGERPAIR", name: "Dagger Pair", category: "Equipment", enchantable: true },
+        { suffix: "2H_ARCANESTAFF", name: "Arcane Staff", category: "Equipment", enchantable: true },
+        { suffix: "2H_HOLYSTAFF", name: "Holy Staff", category: "Equipment", enchantable: true },
+        { suffix: "ARMOR_PLATE_SET1", name: "Soldier Armor", category: "Equipment", enchantable: true },
+        { suffix: "ARMOR_LEATHER_SET1", name: "Mercenary Jacket", category: "Equipment", enchantable: true },
+        { suffix: "ARMOR_CLOTH_SET1", name: "Scholar Robe", category: "Equipment", enchantable: true },
+        { suffix: "HEAD_PLATE_SET1", name: "Soldier Helmet", category: "Equipment", enchantable: true },
+        { suffix: "SHOES_PLATE_SET1", name: "Soldier Boots", category: "Equipment", enchantable: true },
+        { suffix: "ORE", name: "Ore", category: "Materials", enchantable: false },
+        { suffix: "METALBAR", name: "Metal Bar", category: "Materials", enchantable: false },
+        { suffix: "HIDE", name: "Hide", category: "Materials", enchantable: false },
+        { suffix: "LEATHER", name: "Leather", category: "Materials", enchantable: false },
+        { suffix: "FIBER", name: "Fiber", category: "Materials", enchantable: false },
+        { suffix: "CLOTH", name: "Cloth", category: "Materials", enchantable: false },
+        { suffix: "WOOD", name: "Logs", category: "Materials", enchantable: false },
+        { suffix: "PLANKS", name: "Planks", category: "Materials", enchantable: false },
+        { suffix: "ROCK", name: "Rough Stone", category: "Materials", enchantable: false },
+        { suffix: "STONEBLOCK", name: "Stone Block", category: "Materials", enchantable: false },
+        { suffix: "MOUNT_HORSE", name: "Riding Horse", category: "Mounts", enchantable: false },
+        { suffix: "MOUNT_OX", name: "Transport Ox", category: "Mounts", enchantable: false }
+      ];
+      const PRESETS = {
+        gear: ITEM_CATALOG.filter((item) => item.category === "Equipment").map((item) => item.suffix),
+        materials: ITEM_CATALOG.filter((item) => item.category === "Materials").map((item) => item.suffix),
+        mounts: ["MOUNT_HORSE", "MOUNT_OX", "BAG", "CAPE"]
+      };
+      const displayNames = {
+        T4_BAG: "Journeyman's Bag", T4_CAPE: "Journeyman's Cape", T4_MAIN_SWORD: "Journeyman's Broadsword",
+        T4_2H_CLAYMORE: "Journeyman's Claymore", T4_2H_BOW: "Journeyman's Bow",
+        T4_2H_CROSSBOW: "Journeyman's Crossbow", T4_MAIN_FIRESTAFF: "Journeyman's Fire Staff",
+        T4_MAIN_FROSTSTAFF: "Journeyman's Frost Staff", T4_ARMOR_PLATE_SET1: "Soldier Armor",
+        T4_ARMOR_LEATHER_SET1: "Mercenary Jacket", T4_ARMOR_CLOTH_SET1: "Scholar Robe",
+        T4_ORE: "Copper Ore", T4_METALBAR: "Copper Bar", T4_HIDE: "Rugged Hide",
+        T4_LEATHER: "Stiff Leather", T4_FIBER: "Cotton", T4_CLOTH: "Simple Cloth",
+        T4_WOOD: "Birch Logs", T4_PLANKS: "Birch Planks", T4_ROCK: "Limestone",
+        T4_STONEBLOCK: "Limestone Block", T4_MOUNT_HORSE: "Journeyman's Riding Horse",
+        T4_MOUNT_OX: "Journeyman's Transport Ox"
+      };
+      const $ = (selector) => document.querySelector(selector);
+      const scanButton = $("#scan-button");
+      const message = $("#message");
+      const savedDefaultItems = ["T4_BAG", "T4_CAPE", "T4_MAIN_SWORD", "T4_2H_CLAYMORE", "T4_MAIN_FIRESTAFF", "T4_ARMOR_PLATE_SET1", "T4_ARMOR_LEATHER_SET1", "T4_ORE", "T4_HIDE", "T4_WOOD"];
+      let selectedItems = new Set(savedDefaultItems);
+      let activeCategory = "All";
+      let activeController = null;
+
+      try {
+        const saved = JSON.parse(localStorage.getItem("albion-flipper-settings") || "null");
+        if (saved) {
+          if (["europe", "americas", "asia"].includes(saved.server)) $("#server").value = saved.server;
+          if (["all", ...CITIES].includes(saved.source)) $("#source").value = saved.source;
+          if (["1", "2", "3", "4", "5"].includes(saved.quality)) $("#quality").value = saved.quality;
+          if (Number.isFinite(saved.tax) && saved.tax >= 0 && saved.tax <= 100) $("#tax").value = String(saved.tax);
+          if (Number.isFinite(saved.extraCost) && saved.extraCost >= 0) $("#extra-cost").value = String(saved.extraCost);
+          if (Number.isInteger(saved.tier) && saved.tier >= 4 && saved.tier <= 8) $("#item-tier").value = String(saved.tier);
+          if (Number.isInteger(saved.enchantment) && saved.enchantment >= 0 && saved.enchantment <= 4) $("#item-enchantment").value = String(saved.enchantment);
+          if (Array.isArray(saved.selectedItems)) {
+            const validItems = saved.selectedItems.filter((id) => typeof id === "string" && /^T[1-8]_[A-Z0-9_]+(?:@[1-4])?$/.test(id));
+            selectedItems = new Set(validItems.slice(0, 100));
+          } else if (typeof saved.items === "string" && saved.items.trim()) {
+            const validItems = saved.items.split(/[\s,;]+/).map((id) => id.toUpperCase()).filter((id) => /^T[1-8]_[A-Z0-9_]+(?:@[1-4])?$/.test(id));
+            if (validItems.length) selectedItems = new Set(validItems.slice(0, 100));
+          }
+        }
+      } catch (error) {
+        console.warn("Could not restore saved scan settings.", error);
+      }
+
+      const saveSettings = () => {
+        try {
+          localStorage.setItem("albion-flipper-settings", JSON.stringify({
+            server: $("#server").value,
+            source: $("#source").value,
+            quality: $("#quality").value,
+            tax: Number($("#tax").value),
+            extraCost: Number($("#extra-cost").value),
+            tier: Number($("#item-tier").value),
+            enchantment: Number($("#item-enchantment").value),
+            selectedItems: [...selectedItems]
+          }));
+        } catch (error) {
+          console.warn("Could not save scan settings in this browser.", error);
+        }
+      };
+
+      const itemForId = (id) => {
+        const suffix = id.replace(/^T\d+_/, "").replace(/@[1-4]$/, "");
+        return ITEM_CATALOG.find((item) => item.suffix === suffix);
+      };
+
+      const itemIconUrl = (id) => `https://render.albiononline.com/v1/item/${encodeURIComponent(id)}.png?quality=1`;
+
+      const makeItemId = (item) => {
+        const tier = $("#item-tier").value;
+        const enchantment = item.enchantable ? Number($("#item-enchantment").value) : 0;
+        return `T${tier}_${item.suffix}${enchantment ? `@${enchantment}` : ""}`;
+      };
+
+      const itemName = (id) => {
+        const catalogItem = itemForId(id);
+        const tier = id.match(/^T(\d)/)?.[1];
+        const enchantment = id.match(/@([1-4])$/)?.[1];
+        const baseId = id.replace(/@[1-4]$/, "");
+        const name = displayNames[baseId] || catalogItem?.name || baseId.replace(/^T\d+_/, "").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+        return `${name}${tier && !displayNames[baseId] ? ` · T${tier}` : ""}${enchantment ? ` · Enchanted ${enchantment}` : ""}`;
+      };
+
+      const createItemIcon = (id) => {
+        const icon = document.createElement("img");
+        icon.src = itemIconUrl(id);
+        icon.alt = "";
+        icon.loading = "lazy";
+        icon.addEventListener("error", () => {
+          const fallback = document.createElement("span");
+          fallback.className = "item-icon-fallback";
+          fallback.setAttribute("aria-hidden", "true");
+          fallback.textContent = itemForId(id)?.name.charAt(0) || "◇";
+          icon.replaceWith(fallback);
+        }, { once: true });
+        return icon;
+      };
+
+      const renderSelectedItems = () => {
+        const container = $("#selected-items");
+        container.replaceChildren();
+        $("#selection-count").textContent = `${selectedItems.size} / 100`;
+        if (selectedItems.size === 0) {
+          const empty = document.createElement("span");
+          empty.className = "selected-empty";
+          empty.textContent = "No items selected yet.";
+          container.append(empty);
+          return;
+        }
+        for (const id of selectedItems) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "selected-chip";
+          button.title = `Remove ${itemName(id)}`;
+          button.setAttribute("aria-label", `Remove ${itemName(id)}`);
+          const icon = createItemIcon(id);
+          const label = document.createElement("span");
+          label.textContent = itemName(id);
+          button.append(icon, label);
+          button.addEventListener("click", () => {
+            selectedItems.delete(id);
+            saveSettings();
+            renderSelectedItems();
+            renderItemGrid();
+          });
+          container.append(button);
+        }
+      };
+
+      const renderItemGrid = () => {
+        const grid = $("#item-grid");
+        const query = $("#item-search").value.trim().toLowerCase();
+        const items = ITEM_CATALOG.filter((item) => {
+          const matchesCategory = activeCategory === "All" || item.category === activeCategory;
+          const matchesSearch = !query || `${item.name} ${item.suffix}`.toLowerCase().includes(query);
+          return matchesCategory && matchesSearch;
+        });
+        grid.replaceChildren();
+        if (items.length === 0) {
+          const empty = document.createElement("div");
+          empty.className = "picker-no-results";
+          empty.textContent = "No items found. Try another search.";
+          grid.append(empty);
+          return;
+        }
+        for (const item of items) {
+          const id = makeItemId(item);
+          const isSelected = selectedItems.has(id);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `item-card${isSelected ? " selected" : ""}`;
+          button.setAttribute("aria-pressed", String(isSelected));
+          button.title = `${isSelected ? "Remove" : "Add"} ${itemName(id)}`;
+          const icon = createItemIcon(id);
+          const name = document.createElement("span");
+          name.className = "item-card-name";
+          name.textContent = item.name;
+          const tier = document.createElement("span");
+          tier.className = "item-card-tier";
+          tier.textContent = `T${$("#item-tier").value}${item.enchantable && Number($("#item-enchantment").value) ? ` · Enchanted ${$("#item-enchantment").value}` : ""}`;
+          button.append(icon, name, tier);
+          button.addEventListener("click", () => {
+            if (selectedItems.has(id)) {
+              selectedItems.delete(id);
+            } else {
+              if (selectedItems.size >= 100) {
+                showMessage("You can select up to 100 items per scan.", "error");
+                return;
+              }
+              selectedItems.add(id);
+            }
+            saveSettings();
+            renderSelectedItems();
+            renderItemGrid();
+          });
+          grid.append(button);
+        }
+      };
+
+      document.querySelectorAll("[data-preset]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const items = PRESETS[button.dataset.preset];
+          selectedItems = new Set(items.map((suffix) => {
+            const item = ITEM_CATALOG.find((entry) => entry.suffix === suffix);
+            return item ? makeItemId(item) : null;
+          }).filter(Boolean).slice(0, 100));
+          activeCategory = button.dataset.preset === "materials" ? "Materials" : button.dataset.preset === "mounts" ? "Mounts" : "Equipment";
+          document.querySelectorAll("[data-category]").forEach((tab) => tab.classList.toggle("active", tab.dataset.category === activeCategory));
+          saveSettings();
+          renderSelectedItems();
+          renderItemGrid();
+          showMessage(`Selected ${selectedItems.size} items.`, "info");
+        });
+      });
+
+      document.querySelectorAll("[data-category]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeCategory = button.dataset.category;
+          document.querySelectorAll("[data-category]").forEach((tab) => tab.classList.toggle("active", tab === button));
+          renderItemGrid();
+        });
+      });
+
+      $("#clear-selection").addEventListener("click", () => {
+        selectedItems.clear();
+        saveSettings();
+        renderSelectedItems();
+        renderItemGrid();
+      });
+      $("#item-search").addEventListener("input", renderItemGrid);
+      $("#item-tier").addEventListener("change", () => { saveSettings(); renderItemGrid(); });
+      $("#item-enchantment").addEventListener("change", () => { saveSettings(); renderItemGrid(); });
+      document.querySelectorAll("#server, #source, #quality, #tax, #extra-cost").forEach((control) => control.addEventListener("change", saveSettings));
+      renderSelectedItems();
+      renderItemGrid();
+
+      const setStatus = (text, mode = "") => {
+        $("#status-label").textContent = text;
+        $("#api-status").className = `api-status ${mode}`.trim();
+      };
+
+      const showMessage = (text, mode = "info") => {
+        message.textContent = text;
+        message.className = `message visible ${mode}`;
+      };
+
+      const parseItems = () => {
+        const items = [...selectedItems];
+        const invalid = items.filter((id) => !/^T[1-8]_[A-Z0-9_]+(?:@[1-4])?$/.test(id));
+        if (invalid.length) throw new Error("One or more selected items are invalid. Remove them and choose the items again.");
+        if (!items.length) throw new Error("Choose at least one item from the icon gallery.");
+        if (items.length > 100) throw new Error(`This scan has ${items.length} unique IDs. Please limit each scan to 100 items.`);
+        return items;
+      };
+
+      const safeDate = (dateValue) => {
+        if (!dateValue) return null;
+        const date = new Date(dateValue);
+        return Number.isNaN(date.getTime()) ? null : date;
+      };
+
+      const timeAgo = (dateValue) => {
+        const date = safeDate(dateValue);
+        if (!date) return "No timestamp";
+        const minutes = Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
+        if (minutes < 1) return "Just now";
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        return `${Math.floor(hours / 24)}d ago`;
+      };
+
+      const validPrice = (value) => Number.isFinite(Number(value)) && Number(value) > 0;
+
+      const formatSilver = (value) => `${new Intl.NumberFormat("en-US").format(Math.round(value))} silver`;
+
+      const buildRows = (items, data, source, taxRate, extraCost) => {
+        const byItemCity = new Map();
+        for (const entry of data) {
+          if (!entry || !items.includes(entry.item_id) || !entry.city) continue;
+          const key = `${entry.item_id}|${entry.city}`;
+          byItemCity.set(key, entry);
+        }
+
+        return items.map((itemId) => {
+          const blackMarket = byItemCity.get(`${itemId}|Black Market`);
+          const blackMarketPrice = blackMarket && validPrice(blackMarket.buy_price_max) ? Number(blackMarket.buy_price_max) : 0;
+          const blackMarketDate = blackMarket?.buy_price_max_date || "";
+          const sourceEntries = (source === "all" ? CITIES : [source])
+            .map((city) => byItemCity.get(`${itemId}|${city}`))
+            .filter((entry) => entry && validPrice(entry.sell_price_min));
+          sourceEntries.sort((a, b) => Number(a.sell_price_min) - Number(b.sell_price_min));
+          const cheapest = sourceEntries[0];
+          if (!cheapest || !blackMarketPrice) return null;
+
+          const buyPrice = Number(cheapest.sell_price_min);
+          const afterTax = blackMarketPrice * (1 - taxRate);
+          const profit = afterTax - buyPrice - extraCost;
+          const buyDate = cheapest.sell_price_min_date || "";
+          const ageDates = [buyDate, blackMarketDate].map(safeDate).filter(Boolean);
+          const oldest = ageDates.length ? new Date(Math.min(...ageDates.map((date) => date.getTime()))) : null;
+          return {
+            id: itemId,
+            name: itemName(itemId),
+            city: cheapest.city,
+            buyPrice,
+            blackMarketPrice,
+            afterTax,
+            profit,
+            roi: profit / buyPrice * 100,
+            age: oldest ? timeAgo(oldest.toISOString()) : "No timestamp",
+            ageHours: oldest ? (Date.now() - oldest.getTime()) / 3600000 : Infinity
+          };
+        }).filter(Boolean).sort((a, b) => b.profit - a.profit);
+      };
+
+      const renderResults = (rows, itemCount) => {
+        $("#empty-state").hidden = true;
+        $("#results-table").hidden = false;
+        $("#result-count").textContent = `${rows.length} matched`;
+        $("#stat-scanned").textContent = String(itemCount);
+        $("#stat-profitable").textContent = String(rows.filter((row) => row.profit > 0).length);
+        const best = rows[0];
+        const bestReturn = rows.reduce((top, row) => row.roi > top.roi ? row : top, rows[0]);
+        $("#stat-best").textContent = best ? formatSilver(best.profit) : "—";
+        $("#stat-best-item").textContent = best ? best.name : "No matching prices";
+        $("#stat-roi").textContent = bestReturn ? `${bestReturn.roi.toFixed(1)}%` : "—";
+        $("#stat-roi-item").textContent = bestReturn ? bestReturn.name : "Net profit ÷ buy price";
+
+        const body = $("#results-body");
+        body.replaceChildren();
+        for (const row of rows) {
+          const tr = document.createElement("tr");
+          const profitClass = row.profit >= 0 ? "positive-text" : "negative-text";
+          const cells = [
+            `<div class="table-item"><img src="${itemIconUrl(row.id)}" alt="" loading="lazy"><div class="item-name">${escapeHtml(row.name)}</div></div>`,
+            `<span class="city-tag">${escapeHtml(row.city)}</span>`,
+            `${formatSilver(row.buyPrice)}<div class="sub-cell">Lowest sell listing</div>`,
+            `${formatSilver(row.blackMarketPrice)}<div class="sub-cell">Highest buy order</div>`,
+            formatSilver(row.afterTax),
+            `<span class="${profitClass}">${formatSilver(row.profit)}</span>`,
+            `<span class="${row.roi >= 0 ? "roi" : "negative-text"}">${row.roi.toFixed(1)}%</span>`,
+            `<span class="${row.ageHours > 24 ? "negative-text" : ""}">${escapeHtml(row.age)}</span>`
+          ];
+          for (const html of cells) {
+            const td = document.createElement("td");
+            td.innerHTML = html;
+            const icon = td.querySelector("img");
+            if (icon) icon.addEventListener("error", () => { icon.hidden = true; }, { once: true });
+            tr.append(td);
+          }
+          body.append(tr);
+        }
+        if (rows.length === 0) {
+          $("#empty-state").hidden = false;
+          $("#empty-state").innerHTML = '<div class="empty-icon" aria-hidden="true">⌁</div><strong>No matching market prices yet</strong><span>Try another item, quality or server. The API only reports prices that have been observed.</span>';
+        }
+      };
+
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[char]);
+
+      const scan = async () => {
+        let items;
+        try {
+          items = parseItems();
+        } catch (error) {
+          showMessage(error.message, "error");
+          return;
+        }
+        const server = $("#server").value;
+        const source = $("#source").value;
+        const tax = Number($("#tax").value);
+        const extraCost = Number($("#extra-cost").value);
+        if (!Number.isFinite(tax) || tax < 0 || tax > 100) {
+          showMessage("Sell tax must be between 0 and 100 percent.", "error");
+          return;
+        }
+        if (!Number.isFinite(extraCost) || extraCost < 0) {
+          showMessage("Extra cost per item must be zero or greater.", "error");
+          return;
+        }
+
+        saveSettings();
+        if (activeController) activeController.abort();
+        activeController = new AbortController();
+        scanButton.disabled = true;
+        scanButton.classList.add("loading");
+        $("#button-label").textContent = "Scanning markets…";
+        message.className = "message";
+        setStatus("Requesting market data");
+
+        try {
+          const locations = [...(source === "all" ? CITIES : [source]), "Black Market"];
+          const params = new URLSearchParams({
+            locations: locations.join(","),
+            qualities: $("#quality").value
+          });
+          const url = `https://${server}.albion-online-data.com/api/v2/stats/prices/${encodeURIComponent(items.join(","))}?${params}`;
+          const response = await fetch(url, { signal: activeController.signal });
+          if (!response.ok) throw new Error(`Market API returned HTTP ${response.status}. Please try again in a moment.`);
+          const data = await response.json();
+          if (!Array.isArray(data)) throw new Error("The market API returned an unexpected response. Please try again.");
+          const rows = buildRows(items, data, source, tax / 100, extraCost);
+          renderResults(rows, items.length);
+          setStatus("Prices updated", "live");
+
+          const staleCount = rows.filter((row) => row.ageHours > 24).length;
+          if (rows.length === 0) {
+            showMessage("No items had both a city sell listing and a Black Market buy order. Try another item, quality, or server.", "info");
+          } else if (staleCount) {
+            showMessage(`${rows.length} opportunities matched. ${staleCount} result${staleCount === 1 ? " has" : "s have"} price data older than 24 hours; check the timestamp before trading.`, "info");
+          } else {
+            showMessage(`Scan complete: ${rows.length} items have prices in both markets. Prices can change before you trade.`, "info");
+          }
+        } catch (error) {
+          if (error.name === "AbortError") return;
+          setStatus("API request failed", "error");
+          showMessage(error instanceof TypeError
+            ? "Could not reach the market API. Check your internet connection, then try again. If you opened this file directly, try serving this folder from a local web server."
+            : error.message, "error");
+        } finally {
+          if (activeController && !activeController.signal.aborted) {
+            activeController = null;
+            scanButton.disabled = false;
+            scanButton.classList.remove("loading");
+            $("#button-label").textContent = "Scan market prices";
+          }
+        }
+      };
+
+      scanButton.addEventListener("click", scan);
+    })();
+  </script>
+</body>
+</html>
