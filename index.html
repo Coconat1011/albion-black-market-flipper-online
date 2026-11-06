@@ -77,7 +77,7 @@
     .panel-heading p { color: var(--muted); font-size: 11px; margin: 0; line-height: 1.5; }
     .step { color: #778071; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
 
-    .controls-grid { display: grid; grid-template-columns: 1.15fr 1.15fr .8fr .8fr .9fr; gap: 14px; }
+    .controls-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
     .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
     .field label { color: #c5cabb; font-size: 11px; font-weight: 620; }
     .field-hint { color: #7e8779; font-size: 10px; line-height: 1.4; }
@@ -99,6 +99,8 @@
     }
     .preset:hover { color: var(--accent); border-color: #858585; }
     .preset.active { background: var(--accent-dark); border-color: #858585; color: var(--accent); }
+    .preset:disabled { opacity: .63; cursor: wait; }
+    .catalog-sync { color: #7e8779; font-size: 10px; line-height: 1.4; }
     .picker-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 8px; }
     .picker-summary strong { font-size: 10px; font-weight: 650; color: #c5cabb; }
     .picker-summary span { color: #7e8779; font-size: 10px; }
@@ -224,7 +226,7 @@
       <div>
         <div class="eyebrow">Market intelligence · Albion Online</div>
         <h1>KuroFlipper</h1>
-        <p class="intro">Find items to buy from city markets and sell to Black Market buy orders. Compare live market snapshots and estimate your margin before you make the trip.</p>
+        <p class="intro">Find items to buy from one city market and sell to another. Compare market snapshots across cities, including the Black Market, and estimate your margin before you make the trip.</p>
       </div>
       <div class="hero-note"><strong>Your settings stay in this browser.</strong><br>Prices and item icons load from community services.</div>
     </section>
@@ -247,7 +249,7 @@
         <div class="field">
           <label for="source">Buy from</label>
           <select class="control" id="source">
-            <option value="all">All royal cities</option>
+            <option value="all">All cities</option>
             <option>Bridgewatch</option>
             <option>Fort Sterling</option>
             <option>Lymhurst</option>
@@ -256,6 +258,20 @@
             <option>Caerleon</option>
           </select>
           <span class="field-hint">Find the cheapest city sell listing.</span>
+        </div>
+        <div class="field">
+          <label for="destination">Sell to</label>
+          <select class="control" id="destination">
+            <option value="Black Market" selected>Black Market</option>
+            <option value="all">All cities</option>
+            <option>Bridgewatch</option>
+            <option>Fort Sterling</option>
+            <option>Lymhurst</option>
+            <option>Martlock</option>
+            <option>Thetford</option>
+            <option>Caerleon</option>
+          </select>
+          <span class="field-hint">Find the highest city buy order.</span>
         </div>
         <div class="field">
           <label for="quality">Item quality</label>
@@ -289,7 +305,8 @@
           <div class="picker-toolbar">
             <input class="control" id="item-search" type="search" placeholder="Search items…" autocomplete="off">
             <select class="control" id="item-tier" aria-label="Item tier">
-              <option value="4">Tier 4</option><option value="5">Tier 5</option><option value="6">Tier 6</option>
+              <option value="1">Tier 1</option><option value="2">Tier 2</option><option value="3">Tier 3</option>
+              <option value="4" selected>Tier 4</option><option value="5">Tier 5</option><option value="6">Tier 6</option>
               <option value="7">Tier 7</option><option value="8">Tier 8</option>
             </select>
             <select class="control" id="item-enchantment" aria-label="Item enchantment">
@@ -298,18 +315,16 @@
             </select>
           </div>
           <span class="field-hint">Click an item icon to add or remove it. Select a tier and enchantment first.</span>
+          <span class="field-hint" id="catalog-status" aria-live="polite">Loading the full item catalog…</span>
         </div>
         <div class="picker-categories" aria-label="Item categories">
           <span class="preset-label">Quick fill:</span>
           <button type="button" class="preset" data-preset="gear">Popular gear</button>
-          <button type="button" class="preset" data-preset="materials">Materials</button>
-          <button type="button" class="preset" data-preset="mounts">Mounts &amp; supplies</button>
+          <button type="button" class="preset" id="top-ten-button">Live Top 10 profitable</button>
           <span aria-hidden="true" style="width:1px;height:20px;background:#353d32;margin:0 3px"></span>
-          <button type="button" class="preset active" data-category="All">All items</button>
-          <button type="button" class="preset" data-category="Equipment">Equipment</button>
-          <button type="button" class="preset" data-category="Materials">Materials</button>
-          <button type="button" class="preset" data-category="Mounts">Mounts</button>
+          <button type="button" class="preset active" data-category="All">Black Market items</button>
         </div>
+        <div class="catalog-sync" id="top-ten-sync" aria-live="polite">Live Top 10 refreshes selected prices every 10 seconds and rediscovers items every minute.</div>
         <div class="picker-summary">
           <strong>Selected items</strong>
           <span id="selection-count">0 / 100</span>
@@ -320,7 +335,7 @@
       </div>
 
       <div class="form-footer">
-        <div class="formula"><strong>Net profit</strong> = Black Market buy order × (1 − tax) − city sell listing − extra cost<br>Enter your estimated transport and other costs above.</div>
+        <div class="formula"><strong>Net profit</strong> = destination buy order × (1 − tax) − source sell listing − extra cost<br>Enter your estimated transport and other costs above.</div>
         <button type="button" class="primary" id="scan-button"><span class="spinner" aria-hidden="true"></span><span id="button-label">Scan market prices</span><span aria-hidden="true">→</span></button>
       </div>
       <div class="message" id="message" role="status" aria-live="polite"></div>
@@ -341,12 +356,12 @@
         <div class="empty-state" id="empty-state">
           <div class="empty-icon" aria-hidden="true">↗</div>
           <strong>Ready to find your next flip?</strong>
-          <span>Choose your server and scan the market to see the best buy-to-Black-Market opportunities.</span>
+          <span>Choose your server and markets, then scan to compare city-to-city opportunities.</span>
         </div>
         <table id="results-table" hidden>
           <thead>
             <tr>
-              <th>Item</th><th>Buy from</th><th>Buy price</th><th>Black Market order</th><th>After tax</th><th>Net profit</th><th>Return</th><th>Price age</th>
+              <th>Item</th><th>Buy from</th><th>Buy price</th><th>Sell to</th><th>Sell price</th><th>After tax</th><th>Net profit</th><th>Return</th><th>Price age</th>
             </tr>
           </thead>
           <tbody id="results-body"></tbody>
@@ -364,7 +379,10 @@
       "use strict";
 
       const CITIES = ["Bridgewatch", "Fort Sterling", "Lymhurst", "Martlock", "Thetford", "Caerleon"];
-      const ITEM_CATALOG = [
+      const SERVER_API_HOSTS = { europe: "europe", americas: "west", asia: "east" };
+      const ITEM_CATALOG_URL = "https://raw.githubusercontent.com/ao-data/ao-bin-dumps/master/formatted/items.txt";
+      const ITEM_PAGE_SIZE = 100;
+      let ITEM_CATALOG = [
         { suffix: "BAG", name: "Bag", category: "Equipment", enchantable: true },
         { suffix: "CAPE", name: "Cape", category: "Equipment", enchantable: true },
         { suffix: "MAIN_SWORD", name: "Broadsword", category: "Equipment", enchantable: true },
@@ -399,9 +417,13 @@
         { suffix: "MOUNT_OX", name: "Transport Ox", category: "Mounts", enchantable: false }
       ];
       const PRESETS = {
-        gear: ITEM_CATALOG.filter((item) => item.category === "Equipment").map((item) => item.suffix),
-        materials: ITEM_CATALOG.filter((item) => item.category === "Materials").map((item) => item.suffix),
-        mounts: ["MOUNT_HORSE", "MOUNT_OX", "BAG", "CAPE"]
+        gear: [
+          "BAG", "CAPE", "MAIN_SWORD", "2H_CLAYMORE", "2H_BOW", "2H_CROSSBOW",
+          "MAIN_FIRESTAFF", "MAIN_FROSTSTAFF", "MAIN_AXE", "2H_AXE", "2H_SPEAR",
+          "2H_HAMMER", "2H_DAGGERPAIR", "2H_ARCANESTAFF", "2H_HOLYSTAFF",
+          "ARMOR_PLATE_SET1", "ARMOR_LEATHER_SET1", "ARMOR_CLOTH_SET1",
+          "HEAD_PLATE_SET1", "SHOES_PLATE_SET1"
+        ]
       };
       const displayNames = {
         T4_BAG: "Journeyman's Bag", T4_CAPE: "Journeyman's Cape", T4_MAIN_SWORD: "Journeyman's Broadsword",
@@ -420,15 +442,24 @@
       const message = $("#message");
       const SELL_TAX_RATES = { premium: 4, "no-premium": 8 };
       const savedDefaultItems = ["T4_BAG", "T4_CAPE", "T4_MAIN_SWORD", "T4_2H_CLAYMORE", "T4_MAIN_FIRESTAFF", "T4_ARMOR_PLATE_SET1", "T4_ARMOR_LEATHER_SET1", "T4_ORE", "T4_HIDE", "T4_WOOD"];
+      const MAX_ITEMS_PER_REQUEST = 100;
+      const TOP_TEN_PRICE_REFRESH_MS = 10_000;
+      const TOP_TEN_DISCOVERY_REFRESH_MS = 60_000;
       let selectedItems = new Set(savedDefaultItems);
       let activeCategory = "All";
       let activeController = null;
+      let visibleItemLimit = ITEM_PAGE_SIZE;
+      let topTenMode = false;
+      let topTenRefreshTimer = null;
+      let topTenLastDiscoveryAt = 0;
+      let catalogReady = false;
 
       try {
         const saved = JSON.parse(localStorage.getItem("albion-flipper-settings") || "null");
         if (saved) {
           if (["europe", "americas", "asia"].includes(saved.server)) $("#server").value = saved.server;
           if (["all", ...CITIES].includes(saved.source)) $("#source").value = saved.source;
+          if (["all", "Black Market", ...CITIES].includes(saved.destination)) $("#destination").value = saved.destination;
           if (["1", "2", "3", "4", "5"].includes(saved.quality)) $("#quality").value = saved.quality;
           const savedPremiumStatus = saved.premiumStatus || (saved.tax === 8 ? "no-premium" : "premium");
           if (Object.hasOwn(SELL_TAX_RATES, savedPremiumStatus)) $("#premium-status").value = savedPremiumStatus;
@@ -452,6 +483,7 @@
           localStorage.setItem("albion-flipper-settings", JSON.stringify({
             server: $("#server").value,
             source: $("#source").value,
+            destination: $("#destination").value,
             quality: $("#quality").value,
             premiumStatus: $("#premium-status").value,
             extraCost: Number($("#extra-cost").value),
@@ -469,15 +501,21 @@
       };
 
       const itemForId = (id) => {
-        const suffix = id.replace(/^T\d+_/, "").replace(/@[1-4]$/, "");
-        return ITEM_CATALOG.find((item) => item.suffix === suffix);
+        const match = id.match(/^T([1-8])_([A-Z0-9_]+?)(?:@([1-4]))?$/);
+        if (!match) return null;
+        const [, tier, suffix] = match;
+        return ITEM_CATALOG.find((item) => item.tier === Number(tier) && item.suffix === suffix)
+          || ITEM_CATALOG.find((item) => item.suffix === suffix);
       };
 
       const itemIconUrl = (id) => `https://render.albiononline.com/v1/item/${encodeURIComponent(id)}.png?quality=1`;
 
       const makeItemId = (item) => {
-        const tier = $("#item-tier").value;
-        const enchantment = item.enchantable ? Number($("#item-enchantment").value) : 0;
+        const tier = item.tier || Number($("#item-tier").value);
+        const selectedEnchantment = Number($("#item-enchantment").value);
+        const enchantment = item.enchantments
+          ? item.enchantments.includes(selectedEnchantment) ? selectedEnchantment : 0
+          : item.enchantable ? selectedEnchantment : 0;
         return `T${tier}_${item.suffix}${enchantment ? `@${enchantment}` : ""}`;
       };
 
@@ -486,8 +524,49 @@
         const tier = id.match(/^T(\d)/)?.[1];
         const enchantment = id.match(/@([1-4])$/)?.[1];
         const baseId = id.replace(/@[1-4]$/, "");
-        const name = displayNames[baseId] || catalogItem?.name || baseId.replace(/^T\d+_/, "").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
-        return `${name}${tier && !displayNames[baseId] ? ` · T${tier}` : ""}${enchantment ? ` · Enchanted ${enchantment}` : ""}`;
+        const name = catalogItem?.name || displayNames[baseId] || baseId.replace(/^T\d+_/, "").replaceAll("_", " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+        return `${name}${!catalogItem && tier && !displayNames[baseId] ? ` · T${tier}` : ""}${enchantment ? ` · Enchanted ${enchantment}` : ""}`;
+      };
+
+      const itemCategory = (suffix) => {
+        if (/^(?:2H_|MAIN_|OFF_|HEAD_|ARMOR_|SHOES_|CAPE(?:ITEM)?(?:_|$)|BACKPACK_|BAG$|TOOL_)/.test(suffix)) return "Equipment";
+        return null;
+      };
+
+      const supportsEnchantment = (item, enchantment) => enchantment === 0
+        || (item.enchantments ? item.enchantments.includes(enchantment) : Boolean(item.enchantable));
+
+      const loadItemCatalog = async () => {
+        const response = await fetch(ITEM_CATALOG_URL);
+        if (!response.ok) throw new Error(`Item catalog returned HTTP ${response.status}.`);
+        const text = await response.text();
+        const catalog = new Map();
+        const linePattern = /^\s*\d+:\s+(T[1-8]_([A-Z0-9_]+?))(?:@([1-4]))?\s+:\s*(.*?)\s*$/;
+        for (const line of text.split(/\r?\n/)) {
+          const match = line.match(linePattern);
+          if (!match) continue;
+          const [, itemId, suffix, enchantment, name] = match;
+          const category = itemCategory(suffix);
+          if (!category) continue;
+          const tier = Number(itemId.match(/^T(\d)_/)[1]);
+          const key = `${tier}|${suffix}`;
+          let item = catalog.get(key);
+          if (!item) {
+            item = { tier, suffix, name, category, enchantments: [] };
+            catalog.set(key, item);
+          }
+          if (enchantment) item.enchantments.push(Number(enchantment));
+          if (!item.name && name) item.name = name;
+        }
+        if (!catalog.size) throw new Error("The item catalog contained no supported tiered items.");
+        ITEM_CATALOG = [...catalog.values()];
+        selectedItems = new Set([...selectedItems].filter((id) => itemForId(id)));
+        catalogReady = true;
+        $("#catalog-status").textContent = `${ITEM_CATALOG.length.toLocaleString()} Black Market equipment items loaded. Choose a tier, enchantment, and quality.`;
+        visibleItemLimit = ITEM_PAGE_SIZE;
+        saveSettings();
+        renderSelectedItems();
+        renderItemGrid();
       };
 
       const createItemIcon = (id) => {
@@ -539,20 +618,24 @@
       const renderItemGrid = () => {
         const grid = $("#item-grid");
         const query = $("#item-search").value.trim().toLowerCase();
+        const selectedTier = Number($("#item-tier").value);
+        const selectedEnchantment = Number($("#item-enchantment").value);
         const items = ITEM_CATALOG.filter((item) => {
-          const matchesCategory = activeCategory === "All" || item.category === activeCategory;
+          const matchesTier = !item.tier || item.tier === selectedTier;
+          const matchesEnchantment = supportsEnchantment(item, selectedEnchantment);
+          const matchesCategory = itemCategory(item.suffix) && (activeCategory === "All" || item.category === activeCategory);
           const matchesSearch = !query || `${item.name} ${item.suffix}`.toLowerCase().includes(query);
-          return matchesCategory && matchesSearch;
+          return matchesTier && matchesEnchantment && matchesCategory && matchesSearch;
         });
         grid.replaceChildren();
         if (items.length === 0) {
           const empty = document.createElement("div");
           empty.className = "picker-no-results";
-          empty.textContent = "No items found. Try another search.";
+          empty.textContent = "No items match these filters. Try another tier, enchantment, category, or search.";
           grid.append(empty);
           return;
         }
-        for (const item of items) {
+        for (const item of items.slice(0, visibleItemLimit)) {
           const id = makeItemId(item);
           const isSelected = selectedItems.has(id);
           const button = document.createElement("button");
@@ -566,7 +649,7 @@
           name.textContent = item.name;
           const tier = document.createElement("span");
           tier.className = "item-card-tier";
-          tier.textContent = `T${$("#item-tier").value}${item.enchantable && Number($("#item-enchantment").value) ? ` · Enchanted ${$("#item-enchantment").value}` : ""}`;
+          tier.textContent = `T${item.tier || $("#item-tier").value}${id.includes("@") ? ` · Enchanted ${$("#item-enchantment").value}` : ""}`;
           button.append(icon, name, tier);
           button.addEventListener("click", () => {
             if (selectedItems.has(id)) {
@@ -584,16 +667,27 @@
           });
           grid.append(button);
         }
+        if (items.length > visibleItemLimit) {
+          const more = document.createElement("button");
+          more.type = "button";
+          more.className = "preset";
+          more.textContent = `Show more (${visibleItemLimit} of ${items.length.toLocaleString()})`;
+          more.addEventListener("click", () => {
+            visibleItemLimit += ITEM_PAGE_SIZE;
+            renderItemGrid();
+          });
+          grid.append(more);
+        }
       };
 
       document.querySelectorAll("[data-preset]").forEach((button) => {
         button.addEventListener("click", () => {
-          const items = PRESETS[button.dataset.preset];
-          selectedItems = new Set(items.map((suffix) => {
-            const item = ITEM_CATALOG.find((entry) => entry.suffix === suffix);
-            return item ? makeItemId(item) : null;
-          }).filter(Boolean).slice(0, 100));
-          activeCategory = button.dataset.preset === "materials" ? "Materials" : button.dataset.preset === "mounts" ? "Mounts" : "Equipment";
+          const suffixes = PRESETS[button.dataset.preset];
+          const enchantment = Number($("#item-enchantment").value);
+          const items = ITEM_CATALOG.filter((item) => (!item.tier || item.tier === Number($("#item-tier").value))
+            && suffixes.includes(item.suffix) && supportsEnchantment(item, enchantment));
+          selectedItems = new Set(items.map(makeItemId).slice(0, 100));
+          activeCategory = "All";
           document.querySelectorAll("[data-category]").forEach((tab) => tab.classList.toggle("active", tab.dataset.category === activeCategory));
           saveSettings();
           renderSelectedItems();
@@ -616,10 +710,10 @@
         renderSelectedItems();
         renderItemGrid();
       });
-      $("#item-search").addEventListener("input", renderItemGrid);
-      $("#item-tier").addEventListener("change", () => { saveSettings(); renderItemGrid(); });
-      $("#item-enchantment").addEventListener("change", () => { saveSettings(); renderItemGrid(); });
-      document.querySelectorAll("#server, #source, #quality, #extra-cost").forEach((control) => control.addEventListener("change", saveSettings));
+      $("#item-search").addEventListener("input", () => { visibleItemLimit = ITEM_PAGE_SIZE; renderItemGrid(); });
+      $("#item-tier").addEventListener("change", () => { visibleItemLimit = ITEM_PAGE_SIZE; saveSettings(); renderItemGrid(); });
+      $("#item-enchantment").addEventListener("change", () => { visibleItemLimit = ITEM_PAGE_SIZE; saveSettings(); renderItemGrid(); });
+      document.querySelectorAll("#server, #source, #destination, #quality, #extra-cost").forEach((control) => control.addEventListener("change", saveSettings));
       $("#premium-status").addEventListener("change", () => {
         updateSellTax();
         saveSettings();
@@ -627,6 +721,10 @@
       updateSellTax();
       renderSelectedItems();
       renderItemGrid();
+      loadItemCatalog().catch((error) => {
+        console.error("Could not load the complete Albion item catalog.", error);
+        $("#catalog-status").textContent = "Could not load the full item catalog. Check your connection; only starter items are available.";
+      });
 
       const setStatus = (text, mode = "") => {
         $("#status-label").textContent = text;
@@ -643,7 +741,7 @@
         const invalid = items.filter((id) => !/^T[1-8]_[A-Z0-9_]+(?:@[1-4])?$/.test(id));
         if (invalid.length) throw new Error("One or more selected items are invalid. Remove them and choose the items again.");
         if (!items.length) throw new Error("Choose at least one item from the icon gallery.");
-        if (items.length > 100) throw new Error(`This scan has ${items.length} unique IDs. Please limit each scan to 100 items.`);
+        if (items.length > MAX_ITEMS_PER_REQUEST) throw new Error(`This scan has ${items.length} unique IDs. Please limit each scan to ${MAX_ITEMS_PER_REQUEST} items.`);
         return items;
       };
 
@@ -668,37 +766,49 @@
 
       const formatSilver = (value) => `${new Intl.NumberFormat("en-US").format(Math.round(value))} silver`;
 
-      const buildRows = (items, data, source, taxRate, extraCost) => {
+      const buildRows = (items, data, source, destination, taxRate, extraCost) => {
         const byItemCity = new Map();
+        const itemIds = new Set(items);
         for (const entry of data) {
-          if (!entry || !items.includes(entry.item_id) || !entry.city) continue;
+          if (!entry || !itemIds.has(entry.item_id) || !entry.city) continue;
           const key = `${entry.item_id}|${entry.city}`;
           byItemCity.set(key, entry);
         }
 
         return items.map((itemId) => {
-          const blackMarket = byItemCity.get(`${itemId}|Black Market`);
-          const blackMarketPrice = blackMarket && validPrice(blackMarket.buy_price_max) ? Number(blackMarket.buy_price_max) : 0;
-          const blackMarketDate = blackMarket?.buy_price_max_date || "";
           const sourceEntries = (source === "all" ? CITIES : [source])
             .map((city) => byItemCity.get(`${itemId}|${city}`))
             .filter((entry) => entry && validPrice(entry.sell_price_min));
-          sourceEntries.sort((a, b) => Number(a.sell_price_min) - Number(b.sell_price_min));
-          const cheapest = sourceEntries[0];
-          if (!cheapest || !blackMarketPrice) return null;
+          const destinationEntries = (destination === "all" ? CITIES : [destination])
+            .map((city) => byItemCity.get(`${itemId}|${city}`))
+            .filter((entry) => entry && validPrice(entry.buy_price_max));
+          let bestRoute = null;
+          for (const sourceEntry of sourceEntries) {
+            for (const destinationEntry of destinationEntries) {
+              const buyPrice = Number(sourceEntry.sell_price_min);
+              const sellPrice = Number(destinationEntry.buy_price_max);
+              const afterTax = sellPrice * (1 - taxRate);
+              const profit = afterTax - buyPrice - extraCost;
+              if (!bestRoute || profit > bestRoute.profit) {
+                bestRoute = { sourceEntry, destinationEntry, buyPrice, sellPrice, afterTax, profit };
+              }
+            }
+          }
+          if (!bestRoute) return null;
 
-          const buyPrice = Number(cheapest.sell_price_min);
-          const afterTax = blackMarketPrice * (1 - taxRate);
-          const profit = afterTax - buyPrice - extraCost;
-          const buyDate = cheapest.sell_price_min_date || "";
-          const ageDates = [buyDate, blackMarketDate].map(safeDate).filter(Boolean);
+          const { sourceEntry, destinationEntry, buyPrice, sellPrice, afterTax, profit } = bestRoute;
+          const ageDates = [
+            sourceEntry.sell_price_min_date || "",
+            destinationEntry.buy_price_max_date || ""
+          ].map(safeDate).filter(Boolean);
           const oldest = ageDates.length ? new Date(Math.min(...ageDates.map((date) => date.getTime()))) : null;
           return {
             id: itemId,
             name: itemName(itemId),
-            city: cheapest.city,
+            sourceCity: sourceEntry.city,
+            destinationCity: destinationEntry.city,
             buyPrice,
-            blackMarketPrice,
+            sellPrice,
             afterTax,
             profit,
             roi: profit / buyPrice * 100,
@@ -728,9 +838,10 @@
           const profitClass = row.profit >= 0 ? "positive-text" : "negative-text";
           const cells = [
             `<div class="table-item"><img src="${itemIconUrl(row.id)}" alt="" loading="lazy"><div class="item-name">${escapeHtml(row.name)}</div></div>`,
-            `<span class="city-tag">${escapeHtml(row.city)}</span>`,
+            `<span class="city-tag">${escapeHtml(row.sourceCity)}</span>`,
             `${formatSilver(row.buyPrice)}<div class="sub-cell">Lowest sell listing</div>`,
-            `${formatSilver(row.blackMarketPrice)}<div class="sub-cell">Highest buy order</div>`,
+            `<span class="city-tag">${escapeHtml(row.destinationCity)}</span>`,
+            `${formatSilver(row.sellPrice)}<div class="sub-cell">Highest buy order</div>`,
             formatSilver(row.afterTax),
             `<span class="${profitClass}">${formatSilver(row.profit)}</span>`,
             `<span class="${row.roi >= 0 ? "roi" : "negative-text"}">${row.roi.toFixed(1)}%</span>`,
@@ -755,16 +866,86 @@
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
       })[char]);
 
-      const scan = async () => {
+      const selectedLocations = (source, destination) => [...new Set([
+        ...(source === "all" ? CITIES : [source]),
+        ...(destination === "all" ? CITIES : [destination])
+      ])];
+
+      const fetchMarketData = async (items, locations, quality, server, signal) => {
+        const batches = [];
+        for (let index = 0; index < items.length; index += MAX_ITEMS_PER_REQUEST) {
+          batches.push(items.slice(index, index + MAX_ITEMS_PER_REQUEST));
+        }
+        const results = await Promise.all(batches.map(async (batch) => {
+          const params = new URLSearchParams({ locations: locations.join(","), qualities: quality });
+          const url = `https://${SERVER_API_HOSTS[server]}.albion-online-data.com/api/v2/stats/prices/${encodeURIComponent(batch.join(","))}?${params}`;
+          const response = await fetch(url, { signal, cache: "no-store" });
+          if (!response.ok) throw new Error(`Market API returned HTTP ${response.status}. Please try again in a moment.`);
+          const data = await response.json();
+          if (!Array.isArray(data)) throw new Error("The market API returned an unexpected response. Please try again.");
+          return data;
+        }));
+        return results.flat();
+      };
+
+      const getTopTenItems = () => {
+        const tier = Number($("#item-tier").value);
+        const enchantment = Number($("#item-enchantment").value);
+        const query = $("#item-search").value.trim().toLowerCase();
+        const items = ITEM_CATALOG.filter((item) => item.tier === tier
+          && supportsEnchantment(item, enchantment)
+          && (!query || `${item.name} ${item.suffix}`.toLowerCase().includes(query)));
+        return items.map(makeItemId);
+      };
+
+      const scheduleTopTenRefresh = () => {
+        clearTimeout(topTenRefreshTimer);
+        if (!topTenMode) return;
+        $("#top-ten-sync").textContent = `Prices sync every 10 seconds; full item discovery every minute · ${new Date().toLocaleTimeString()} last checked.`;
+        topTenRefreshTimer = setTimeout(() => {
+          if (document.hidden) {
+            scheduleTopTenRefresh();
+            return;
+          }
+          const discoverAll = Date.now() - topTenLastDiscoveryAt >= TOP_TEN_DISCOVERY_REFRESH_MS;
+          scan(true, !discoverAll);
+        }, TOP_TEN_PRICE_REFRESH_MS);
+      };
+
+      const refreshTopTenSoon = () => {
+        if (!topTenMode) return;
+        clearTimeout(topTenRefreshTimer);
+        topTenRefreshTimer = setTimeout(() => scan(true), 500);
+      };
+
+      const scan = async (findTopTen = false, refreshSelectedOnly = false) => {
+        if (findTopTen && !catalogReady) {
+          showMessage("The full item list is still loading. Try Live Top 10 again in a moment.", "info");
+          return;
+        }
+        if (findTopTen && refreshSelectedOnly && selectedItems.size === 0) {
+          setStatus("Waiting for the next full item discovery");
+          scheduleTopTenRefresh();
+          return;
+        }
+        if (!findTopTen) {
+          topTenMode = false;
+          clearTimeout(topTenRefreshTimer);
+          $("#top-ten-sync").textContent = "Live Top 10 checks the latest reported prices and refreshes every minute.";
+        }
         let items;
         try {
-          items = parseItems();
+          items = findTopTen
+            ? refreshSelectedOnly ? [...selectedItems] : getTopTenItems()
+            : parseItems();
+          if (findTopTen && items.length === 0) throw new Error("No Black Market items match the current tier, enchantment, and search filters.");
         } catch (error) {
           showMessage(error.message, "error");
           return;
         }
         const server = $("#server").value;
         const source = $("#source").value;
+        const destination = $("#destination").value;
         const tax = SELL_TAX_RATES[$("#premium-status").value];
         const extraCost = Number($("#extra-cost").value);
         if (!Number.isFinite(extraCost) || extraCost < 0) {
@@ -774,35 +955,53 @@
 
         saveSettings();
         if (activeController) activeController.abort();
-        activeController = new AbortController();
+        const controller = new AbortController();
+        activeController = controller;
         scanButton.disabled = true;
+        $("#top-ten-button").disabled = true;
         scanButton.classList.add("loading");
-        $("#button-label").textContent = "Scanning markets…";
+        $("#button-label").textContent = findTopTen ? "Finding Top 10…" : "Scanning markets…";
         message.className = "message";
-        setStatus("Requesting market data");
+        setStatus(findTopTen
+          ? refreshSelectedOnly ? "Refreshing Top 10 prices" : `Discovering prices for ${items.length.toLocaleString()} items`
+          : "Requesting market data");
 
         try {
-          const locations = [...(source === "all" ? CITIES : [source]), "Black Market"];
-          const params = new URLSearchParams({
-            locations: locations.join(","),
-            qualities: $("#quality").value
-          });
-          const url = `https://${server}.albion-online-data.com/api/v2/stats/prices/${encodeURIComponent(items.join(","))}?${params}`;
-          const response = await fetch(url, { signal: activeController.signal });
-          if (!response.ok) throw new Error(`Market API returned HTTP ${response.status}. Please try again in a moment.`);
-          const data = await response.json();
-          if (!Array.isArray(data)) throw new Error("The market API returned an unexpected response. Please try again.");
-          const rows = buildRows(items, data, source, tax / 100, extraCost);
+          const locations = selectedLocations(source, destination);
+          const data = await fetchMarketData(items, locations, $("#quality").value, server, controller.signal);
+          let rows = buildRows(items, data, source, destination, tax / 100, extraCost);
+          if (findTopTen && !refreshSelectedOnly) {
+            rows = rows.filter((row) => row.profit > 0).slice(0, 10);
+            selectedItems = new Set(rows.map((row) => row.id));
+            saveSettings();
+            renderSelectedItems();
+            renderItemGrid();
+            topTenLastDiscoveryAt = Date.now();
+          } else if (findTopTen) {
+            rows = rows.filter((row) => row.profit > 0).slice(0, 10);
+            selectedItems = new Set(rows.map((row) => row.id));
+            saveSettings();
+            renderSelectedItems();
+          }
           renderResults(rows, items.length);
-          setStatus("Prices updated", "live");
+          const syncedAt = new Date();
+          setStatus(`Prices updated ${syncedAt.toLocaleTimeString()}`, "live");
 
           const staleCount = rows.filter((row) => row.ageHours > 24).length;
           if (rows.length === 0) {
-            showMessage("No items had both a city sell listing and a Black Market buy order. Try another item, quality, or server.", "info");
+            showMessage(findTopTen
+              ? "No profitable opportunities with reported prices matched these filters. Prices may be missing or stale."
+              : "No items had both a source-city sell listing and a destination buy order. Try another item, quality, market, or server.", "info");
           } else if (staleCount) {
-            showMessage(`${rows.length} opportunities matched. ${staleCount} result${staleCount === 1 ? " has" : "s have"} price data older than 24 hours; check the timestamp before trading.`, "info");
+            showMessage(`${findTopTen ? "Top profitable items" : `${rows.length} opportunities matched`}: ${staleCount} result${staleCount === 1 ? " has" : "s have"} price data older than 24 hours. Prices refresh from the latest community reports, but verify in-game before trading.`, "info");
           } else {
-            showMessage(`Scan complete: ${rows.length} items have prices in both markets. Prices can change before you trade.`, "info");
+            showMessage(findTopTen
+              ? `Showing ${rows.length} currently profitable items. Prices sync every 10 seconds; item discovery refreshes every minute.`
+              : `Scan complete: ${rows.length} items have prices in both selected markets. Prices can change before you trade.`, "info");
+          }
+          if (findTopTen) {
+            topTenMode = true;
+            scheduleTopTenRefresh();
           }
         } catch (error) {
           if (error.name === "AbortError") return;
@@ -811,16 +1010,32 @@
             ? "Could not reach the market API. Check your internet connection, then try again. If you opened this file directly, try serving this folder from a local web server."
             : error.message, "error");
         } finally {
-          if (activeController && !activeController.signal.aborted) {
+          if (activeController === controller) {
             activeController = null;
             scanButton.disabled = false;
+            $("#top-ten-button").disabled = false;
             scanButton.classList.remove("loading");
             $("#button-label").textContent = "Scan market prices";
+            if (findTopTen && topTenMode) scheduleTopTenRefresh();
           }
         }
       };
 
-      scanButton.addEventListener("click", scan);
+      scanButton.addEventListener("click", () => scan());
+      $("#top-ten-button").addEventListener("click", () => {
+        topTenMode = true;
+        topTenLastDiscoveryAt = 0;
+        scan(true);
+      });
+      document.querySelectorAll("#server, #source, #destination, #quality, #premium-status, #extra-cost, #item-tier, #item-enchantment")
+        .forEach((control) => control.addEventListener("change", refreshTopTenSoon));
+      $("#item-search").addEventListener("input", refreshTopTenSoon);
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && topTenMode) {
+          topTenLastDiscoveryAt = 0;
+          refreshTopTenSoon();
+        }
+      });
     })();
   </script>
 </body>
